@@ -1,0 +1,17 @@
+{
+  "name": "job-hunt-control-center",
+  "version": "1.0.0",
+  "description": "Unified dashboard for leadgen + outreach + job-tracker",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
