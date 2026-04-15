@@ -1,3 +1,5 @@
 node_modules
 .env
 *.log
+outreach-compose.json
+.runtime-outreach-template.txt

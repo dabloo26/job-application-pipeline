@@ -18,13 +18,33 @@
       th { background:#1a2450; position: sticky; top:0; }
       .table-wrap { max-height:420px; overflow:auto; }
       .muted { color:#aeb8dc; font-size:13px; }
-      input { background:#0e1430; color:#e6e9f5; border:1px solid #2a3769; border-radius:6px; padding:8px; min-width:220px; }
+      input, textarea { background:#0e1430; color:#e6e9f5; border:1px solid #2a3769; border-radius:6px; padding:8px; min-width:220px; }
       label { display:flex; flex-direction:column; gap:6px; font-size:13px; color:#c6d0f0; }
+      textarea { min-height: 140px; width: 100%; }
     </style>
   </head>
   <body>
     <h1>Job Hunt Control Center</h1>
     <div class="muted">Standalone dashboard: fetch leads, send outreach, view data, run job tracker sync.</div>
+
+    <div class="card">
+      <h3>Outreach Compose</h3>
+      <div class="row">
+        <label style="flex:1;">Email subject<input id="subjectInput" placeholder="Quick note - engineering opportunities (UMD)" /></label>
+      </div>
+      <div class="row">
+        <label style="flex:1;">Email body template (supports placeholders like {{firstName}})<textarea id="bodyTemplateInput" placeholder="Dear {{firstName}}, ..."></textarea></label>
+      </div>
+      <div class="row">
+        <label style="flex:1;">Cover letter attachment path (optional)<input id="coverLetterPathInput" placeholder="/Users/anand/Desktop/.../cover-letter.pdf" /></label>
+      </div>
+      <div class="row">
+        <label style="flex:1;">Extra attachment paths (comma-separated)<input id="extraAttachmentsInput" placeholder="/Users/anand/Desktop/resume.pdf, /Users/anand/Desktop/transcript.pdf" /></label>
+      </div>
+      <div class="row">
+        <button id="saveComposeBtn">Save Outreach Compose</button>
+      </div>
+    </div>
 
     <div class="card">
       <h3>Lead Filters (editable)</h3>

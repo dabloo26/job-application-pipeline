@@ -11,6 +11,10 @@ const perPageInput = document.getElementById("perPageInput");
 const maxPagesInput = document.getElementById("maxPagesInput");
 const delayMsInput = document.getElementById("delayMsInput");
 const maxApolloMatchesInput = document.getElementById("maxApolloMatchesInput");
+const subjectInput = document.getElementById("subjectInput");
+const bodyTemplateInput = document.getElementById("bodyTemplateInput");
+const coverLetterPathInput = document.getElementById("coverLetterPathInput");
+const extraAttachmentsInput = document.getElementById("extraAttachmentsInput");
 
 function log(msg) {
   const ts = new Date().toLocaleTimeString();
@@ -61,6 +65,22 @@ function getFiltersForm() {
   };
 }
 
+function setComposeForm(compose) {
+  subjectInput.value = compose.subject || "";
+  bodyTemplateInput.value = compose.bodyTemplate || "";
+  coverLetterPathInput.value = compose.coverLetterPath || "";
+  extraAttachmentsInput.value = (compose.extraAttachments || []).join(", ");
+}
+
+function getComposeForm() {
+  return {
+    subject: subjectInput.value,
+    bodyTemplate: bodyTemplateInput.value,
+    coverLetterPath: coverLetterPathInput.value,
+    extraAttachments: extraAttachmentsInput.value
+  };
+}
+
 function renderTable(rows) {
   if (!rows || !rows.length) {
     tableEl.innerHTML = "<tr><td>No data</td></tr>";
@@ -101,6 +121,16 @@ async function loadData() {
 }
 
 document.getElementById("refreshStatusBtn").addEventListener("click", refreshStatus);
+document.getElementById("saveComposeBtn").addEventListener("click", async () => {
+  try {
+    const next = getComposeForm();
+    const r = await callApi("/api/outreach-compose", "POST", next);
+    setComposeForm(r.compose || {});
+    log("Outreach compose saved.");
+  } catch (e) {
+    log(`Saving compose failed: ${e.message}`);
+  }
+});
 document.getElementById("saveFiltersBtn").addEventListener("click", async () => {
   try {
     const next = getFiltersForm();
@@ -154,3 +184,12 @@ viewDataLink.addEventListener("click", async (e) => {
 
 refreshStatus();
 loadData();
+(async () => {
+  try {
+    const r = await callApi("/api/outreach-compose");
+    setComposeForm(r.compose || {});
+    log("Loaded outreach compose settings.");
+  } catch (e) {
+    log(`Compose load error: ${e.message}`);
+  }
+})();

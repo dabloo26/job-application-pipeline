@@ -33,6 +33,8 @@ const JOB_TRACKER_DIR = process.env.JOB_TRACKER_DIR || path.join(ROOT, "job-trac
 const OUTREACH_DATA = path.join(PORTFOLIO_DIR, "scripts", "outreach", "data", "technical-recruiter-combined.json");
 const MASTER_CSV = path.join(LEADGEN_DIR, "output", "combined-master.csv");
 const FILTERS_PATH = path.join(process.cwd(), "filters.json");
+const COMPOSE_PATH = path.join(process.cwd(), "outreach-compose.json");
+const COMPOSE_TEMPLATE_PATH = path.join(process.cwd(), ".runtime-outreach-template.txt");
 
 const DEFAULT_FILTERS = {
   titles: [
@@ -50,6 +52,13 @@ const DEFAULT_FILTERS = {
   maxPages: 6,
   delayMs: 1500,
   maxApolloMatches: 120
+};
+
+const DEFAULT_COMPOSE = {
+  subject: process.env.OUTREACH_SUBJECT || "Quick note - engineering opportunities (UMD)",
+  bodyTemplate: "",
+  coverLetterPath: process.env.OUTREACH_COVER_LETTER_PATH || "",
+  extraAttachments: []
 };
 
 function parseCsvLine(line) {
@@ -112,6 +121,29 @@ async function readFilters() {
 async function saveFilters(filters) {
   const next = { ...DEFAULT_FILTERS, ...filters };
   await writeFile(FILTERS_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+  return next;
+}
+
+async function readCompose() {
+  try {
+    const text = await readFile(COMPOSE_PATH, "utf8");
+    const parsed = JSON.parse(text);
+    return { ...DEFAULT_COMPOSE, ...parsed };
+  } catch {
+    return { ...DEFAULT_COMPOSE };
+  }
+}
+
+async function saveCompose(compose) {
+  const next = {
+    ...DEFAULT_COMPOSE,
+    ...compose,
+    subject: String(compose.subject || DEFAULT_COMPOSE.subject),
+    bodyTemplate: String(compose.bodyTemplate || ""),
+    coverLetterPath: String(compose.coverLetterPath || "").trim(),
+    extraAttachments: parseCsvList(compose.extraAttachments)
+  };
+  await writeFile(COMPOSE_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf8");
   return next;
 }
 
@@ -194,6 +226,35 @@ app.get("/api/filters", async (_req, res) => {
   }
 });
 
+app.get("/api/outreach-compose", async (_req, res) => {
+  try {
+    const compose = await readCompose();
+    if (!compose.bodyTemplate) {
+      const defaultTemplatePath = path.join(
+        PORTFOLIO_DIR,
+        "scripts",
+        "outreach",
+        "templates",
+        "body.txt"
+      );
+      compose.bodyTemplate = await readFile(defaultTemplatePath, "utf8").catch(() => "");
+    }
+    res.json({ ok: true, compose });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
+app.post("/api/outreach-compose", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const compose = await saveCompose(body);
+    res.json({ ok: true, compose });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e.message || e) });
+  }
+});
+
 app.post("/api/filters", async (req, res) => {
   try {
     const body = req.body || {};
@@ -263,10 +324,22 @@ app.post("/api/fetch-emails", async (_req, res) => {
 
 app.post("/api/send-emails", async (_req, res) => {
   try {
+    const compose = await readCompose();
+    if ((compose.bodyTemplate || "").trim()) {
+      await writeFile(COMPOSE_TEMPLATE_PATH, compose.bodyTemplate, "utf8");
+    }
     const phrase = await computeSendPhrase();
+    const extraEnv = {
+      OUTREACH_SUBJECT: compose.subject || DEFAULT_COMPOSE.subject,
+      OUTREACH_COVER_LETTER_PATH: compose.coverLetterPath || "",
+      OUTREACH_EXTRA_ATTACHMENTS: parseCsvList(compose.extraAttachments).join(",")
+    };
+    if ((compose.bodyTemplate || "").trim()) {
+      extraEnv.OUTREACH_TEMPLATE_PATH = COMPOSE_TEMPLATE_PATH;
+    }
     const child = spawn("npm", ["run", "outreach:send", "--", "--send", "--i-approve-message"], {
       cwd: PORTFOLIO_DIR,
-      env: process.env
+      env: { ...process.env, ...extraEnv }
     });
 
     let stdout = "";
@@ -282,7 +355,14 @@ app.post("/api/send-emails", async (_req, res) => {
       stderr += d.toString();
     });
     child.on("close", (code) => {
-      res.json({ ok: (code ?? 1) === 0, code, stdout, stderr, confirmationUsed: phrase });
+      res.json({
+        ok: (code ?? 1) === 0,
+        code,
+        stdout,
+        stderr,
+        confirmationUsed: phrase,
+        composeApplied: extraEnv
+      });
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e.message || e) });
